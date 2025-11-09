@@ -57,51 +57,30 @@
             </div>
         </section>
 
-        <!-- Report Summary Section -->
-        <section class="report-section">
-            <h2><i class="fas fa-chart-pie"></i> Monthly Report</h2>
-            <div class="report-controls">
-                <div class="form-group">
-                    <label for="reportMonth"><i class="fas fa-calendar"></i> Select Month:</label>
-                    <input type="month" id="reportMonth" required>
-                </div>
-                <button id="generateReport" class="btn btn-secondary"><i class="fas fa-search"></i> Generate Report</button>
+        <!-- Quick Actions Section -->
+        <section class="quick-actions-section">
+            <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
+            <div class="management-buttons">
+                <button id="openExpenseListBtn" class="btn btn-primary">
+                    <i class="fas fa-list"></i> View Expense List
+                </button>
+                <button id="openMonthlyReportBtn" class="btn btn-primary">
+                    <i class="fas fa-chart-pie"></i> Monthly Report
+                </button>
             </div>
-            <div class="report-charts">
-                <div class="chart-wrapper">
-                    <h3><i class="fas fa-chart-pie"></i> Category Distribution</h3>
-                    <canvas id="monthlyPieChart"></canvas>
-                </div>
-                <div class="chart-wrapper">
-                    <h3><i class="fas fa-chart-bar"></i> Category Comparison</h3>
-                    <canvas id="monthlyBarChart"></canvas>
-                </div>
-            </div>
-            <div id="reportSummary" class="report-summary"></div>
         </section>
 
         <!-- Category Management Section -->
         <section class="category-management">
-            <h2><i class="fas fa-cog"></i> Category Management</h2>
-            <div class="category-controls">
-                <div class="form-group">
-                    <input type="text" id="newCategoryName" placeholder="Category name">
-                    <button id="addCategoryBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add Category</button>
-                </div>
+            <h2><i class="fas fa-cog"></i> Settings</h2>
+            <div class="management-buttons">
+                <button id="openCategoryManagementBtn" class="btn btn-primary">
+                    <i class="fas fa-tags"></i> Manage Categories
+                </button>
+                <button id="openItemMappingBtn" class="btn btn-primary">
+                    <i class="fas fa-link"></i> Manage Item-Category Mapping
+                </button>
             </div>
-            <div id="categoriesList" class="categories-list"></div>
-            
-            <h3><i class="fas fa-link"></i> Item-Category Mapping</h3>
-            <div class="item-mapping-controls">
-                <div class="form-group">
-                    <input type="text" id="newItemName" placeholder="Item name">
-                    <select id="newItemCategory">
-                        <option value="">Select category</option>
-                    </select>
-                    <button id="addItemBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add Item</button>
-                </div>
-            </div>
-            <div id="itemsList" class="items-list"></div>
         </section>
     </div>
 
@@ -117,6 +96,59 @@
         </div>
     </div>
 
+    <!-- Modal for Category Management -->
+    <div id="categoryManagementModal" class="modal">
+        <div class="modal-content large-modal">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-tags"></i> Category Management</h2>
+            <div class="modal-section">
+                <h3><i class="fas fa-plus-circle"></i> Add New Category</h3>
+                <div class="category-controls">
+                    <div class="form-group">
+                        <input type="text" id="newCategoryName" placeholder="Category name">
+                        <button id="addCategoryBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add Category</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-section">
+                <h3><i class="fas fa-list"></i> Existing Categories</h3>
+                <div id="categoriesList" class="categories-list"></div>
+            </div>
+            <div class="modal-actions">
+                <button id="saveCategoriesBtn" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+                <button id="closeCategoryModalBtn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Item-Category Mapping -->
+    <div id="itemMappingModal" class="modal">
+        <div class="modal-content large-modal">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-link"></i> Item-Category Mapping</h2>
+            <div class="modal-section">
+                <h3><i class="fas fa-plus-circle"></i> Add New Item</h3>
+                <div class="item-mapping-controls">
+                    <div class="form-group">
+                        <input type="text" id="newItemName" placeholder="Item name">
+                        <select id="newItemCategory">
+                            <option value="">Select category</option>
+                        </select>
+                        <button id="addItemBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add Item</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-section">
+                <h3><i class="fas fa-list"></i> Item Mappings</h3>
+                <div id="itemsList" class="items-list"></div>
+            </div>
+            <div class="modal-actions">
+                <button id="saveMappingsBtn" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+                <button id="closeMappingModalBtn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal for Edit Category -->
     <div id="editCategoryModal" class="modal">
         <div class="modal-content">
@@ -128,6 +160,95 @@
                 <input type="hidden" id="editCategoryId">
             </div>
             <button id="saveCategoryBtn" class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
+        </div>
+    </div>
+
+    <!-- Modal for Expense List -->
+    <div id="expenseListModal" class="modal">
+        <div class="modal-content large-modal">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-list"></i> Expense List</h2>
+            <div class="modal-section">
+                <div class="expense-list-controls">
+                    <div class="form-group">
+                        <label for="expenseListMonth"><i class="fas fa-calendar"></i> Filter by Month:</label>
+                        <input type="month" id="expenseListMonth">
+                    </div>
+                    <button id="loadExpensesBtn" class="btn btn-secondary"><i class="fas fa-search"></i> Load Expenses</button>
+                </div>
+            </div>
+            <div class="modal-section">
+                <div id="expensesList" class="expenses-list"></div>
+            </div>
+            <div class="modal-actions">
+                <button id="closeExpenseListModalBtn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Monthly Report -->
+    <div id="monthlyReportModal" class="modal">
+        <div class="modal-content large-modal">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-chart-pie"></i> Monthly Report</h2>
+            <div class="modal-section">
+                <div class="report-controls">
+                    <div class="form-group">
+                        <label for="reportMonth"><i class="fas fa-calendar"></i> Select Month:</label>
+                        <input type="month" id="reportMonth" required>
+                    </div>
+                    <button id="generateReport" class="btn btn-secondary"><i class="fas fa-search"></i> Generate Report</button>
+                </div>
+            </div>
+            <div class="modal-section">
+                <div class="report-charts">
+                    <div class="chart-wrapper">
+                        <h3><i class="fas fa-chart-pie"></i> Category Distribution</h3>
+                        <canvas id="monthlyPieChart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3><i class="fas fa-chart-bar"></i> Category Comparison</h3>
+                        <canvas id="monthlyBarChart"></canvas>
+                    </div>
+                </div>
+                <div id="reportSummary" class="report-summary"></div>
+            </div>
+            <div class="modal-actions">
+                <button id="closeMonthlyReportModalBtn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Edit Expense -->
+    <div id="editExpenseModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-edit"></i> Edit Expense</h2>
+            <form id="editExpenseForm">
+                <div class="form-group">
+                    <label for="editExpenseDate"><i class="fas fa-calendar-alt"></i> Date:</label>
+                    <input type="date" id="editExpenseDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="editExpenseAmount"><i class="fas fa-rupee-sign"></i> Amount:</label>
+                    <input type="number" id="editExpenseAmount" step="0.01" min="0" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="editExpenseItem"><i class="fas fa-shopping-bag"></i> Item:</label>
+                    <select id="editExpenseItem" required>
+                        <option value="">Select an item</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editExpenseCategory"><i class="fas fa-tags"></i> Category:</label>
+                    <input type="text" id="editExpenseCategory" readonly>
+                </div>
+                <input type="hidden" id="editExpenseId">
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+                    <button type="button" id="cancelEditExpenseBtn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
 

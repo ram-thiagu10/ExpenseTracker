@@ -11,6 +11,9 @@ let monthlyPieChart = null;
 let monthlyBarChart = null;
 let categoryDetailChart = null;
 
+// Store current category modal state
+let currentCategoryModal = { category: null, month: null, year: null };
+
 // Category icons mapping
 const categoryIcons = {
     'Protein': 'fa-drumstick-bite',
@@ -146,6 +149,113 @@ function getCategorySummary(expenses) {
     return summary;
 }
 
+function deleteExpense(id) {
+    if (!confirm('Are you sure you want to delete this expense?')) {
+        return false;
+    }
+    const expenses = getExpenses();
+    const filtered = expenses.filter(exp => exp.id !== id);
+    saveExpenses(filtered);
+    renderExpensesList(); // Refresh the list
+    renderOverviewChart(); // Update overview chart
+    
+    // Refresh category modal if it's open
+    const categoryModal = document.getElementById('categoryModal');
+    if (categoryModal && categoryModal.classList.contains('show') && currentCategoryModal.category) {
+        showCategoryDetails(currentCategoryModal.category, currentCategoryModal.month, currentCategoryModal.year);
+    }
+    
+    // Refresh expense list modal if it's open
+    const expenseListModal = document.getElementById('expenseListModal');
+    if (expenseListModal && expenseListModal.classList.contains('show')) {
+        renderExpensesList();
+    }
+    
+    // Refresh monthly report modal if it's open
+    const monthlyReportModal = document.getElementById('monthlyReportModal');
+    if (monthlyReportModal && monthlyReportModal.classList.contains('show')) {
+        const monthInput = document.getElementById('reportMonth').value;
+        if (monthInput) {
+            const [year, month] = monthInput.split('-').map(Number);
+            renderMonthlyReport(month - 1, year);
+        }
+    }
+    
+    alert('Expense deleted successfully!');
+    return true;
+}
+
+function editExpense(id, date, amount, item) {
+    const category = autoAssignCategory(item);
+    const expenses = getExpenses();
+    const expense = expenses.find(exp => exp.id === id);
+    if (expense) {
+        expense.date = date;
+        expense.amount = parseFloat(amount);
+        expense.item = item;
+        expense.category = category;
+        saveExpenses(expenses);
+        renderExpensesList(); // Refresh the list
+        renderOverviewChart(); // Update overview chart
+        
+        // Refresh category modal if it's open
+        const categoryModal = document.getElementById('categoryModal');
+        if (categoryModal && categoryModal.classList.contains('show') && currentCategoryModal.category) {
+            showCategoryDetails(currentCategoryModal.category, currentCategoryModal.month, currentCategoryModal.year);
+        }
+        
+        // Refresh expense list modal if it's open
+        const expenseListModal = document.getElementById('expenseListModal');
+        if (expenseListModal && expenseListModal.classList.contains('show')) {
+            renderExpensesList();
+        }
+        
+        // Refresh monthly report modal if it's open
+        const monthlyReportModal = document.getElementById('monthlyReportModal');
+        if (monthlyReportModal && monthlyReportModal.classList.contains('show')) {
+            const monthInput = document.getElementById('reportMonth').value;
+            if (monthInput) {
+                const [year, month] = monthInput.split('-').map(Number);
+                renderMonthlyReport(month - 1, year);
+            }
+        }
+        
+        return true;
+    }
+    return false;
+}
+
+function openEditExpenseModal(id) {
+    const expenses = getExpenses();
+    const expense = expenses.find(exp => exp.id === id);
+    if (!expense) return;
+    
+    document.getElementById('editExpenseId').value = id;
+    document.getElementById('editExpenseDate').value = expense.date;
+    document.getElementById('editExpenseAmount').value = expense.amount;
+    
+    // Populate item dropdown
+    const itemSelect = document.getElementById('editExpenseItem');
+    const itemMap = getItemCategoryMap();
+    const items = Object.keys(itemMap).sort();
+    
+    itemSelect.innerHTML = '<option value="">Select an item</option>';
+    items.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item;
+        option.textContent = item.charAt(0).toUpperCase() + item.slice(1);
+        if (item === expense.item) {
+            option.selected = true;
+        }
+        itemSelect.appendChild(option);
+    });
+    
+    // Set category
+    document.getElementById('editExpenseCategory').value = expense.category;
+    
+    showModal('editExpenseModal');
+}
+
 function autoAssignCategory(item) {
     const itemMap = getItemCategoryMap();
     return itemMap[item.toLowerCase()] || 'Other';
@@ -188,6 +298,7 @@ function editCategory(id, name) {
         renderCategories();
         renderItems();
         updateCategoryDropdowns();
+        updateItemDropdown();
         return true;
     }
     return false;
@@ -228,9 +339,17 @@ function deleteCategory(id) {
     // Remove category
     const filtered = categories.filter(cat => cat.id !== id);
     saveCategories(filtered);
-    renderCategories();
-    renderItems();
+    // Refresh modals if they're open
+    const categoryModal = document.getElementById('categoryManagementModal');
+    if (categoryModal && categoryModal.classList.contains('show')) {
+        renderCategories();
+    }
+    const mappingModal = document.getElementById('itemMappingModal');
+    if (mappingModal && mappingModal.classList.contains('show')) {
+        renderItems();
+    }
     updateCategoryDropdowns();
+    updateItemDropdown();
     return true;
 }
 
@@ -249,6 +368,7 @@ function updateItemCategory(item, category) {
     itemMap[item.toLowerCase()] = category;
     saveItemCategoryMap(itemMap);
     renderItems();
+    updateItemDropdown(); // Update expense form dropdown
 }
 
 function removeItem(item) {
@@ -256,7 +376,11 @@ function removeItem(item) {
     delete itemMap[item.toLowerCase()];
     saveItemCategoryMap(itemMap);
     updateItemDropdown();
-    renderItems();
+    // Refresh items list in modal if it's open
+    const mappingModal = document.getElementById('itemMappingModal');
+    if (mappingModal && mappingModal.classList.contains('show')) {
+        renderItems();
+    }
 }
 
 // ==================== UI FUNCTIONS ====================
@@ -308,6 +432,64 @@ function renderCategories() {
             </div>
         </div>
     `;
+    }).join('');
+}
+
+function renderExpensesList() {
+    const expensesList = document.getElementById('expensesList');
+    const monthInput = document.getElementById('expenseListMonth').value;
+    
+    let expenses = getExpenses();
+    
+    // Filter by month if selected
+    if (monthInput) {
+        const [year, month] = monthInput.split('-').map(Number);
+        expenses = expenses.filter(expense => {
+            const expenseDate = new Date(expense.date);
+            return expenseDate.getMonth() === month - 1 && expenseDate.getFullYear() === year;
+        });
+    }
+    
+    // Sort by date (newest first)
+    expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (expenses.length === 0) {
+        expensesList.innerHTML = '<div class="no-data">No expenses found. Add some expenses to get started!</div>';
+        return;
+    }
+    
+    expensesList.innerHTML = expenses.map(expense => {
+        const date = new Date(expense.date);
+        const icon = categoryIcons[expense.category] || 'fa-tag';
+        return `
+            <div class="expense-list-item">
+                <div class="expense-list-item-info">
+                    <div class="expense-list-item-date">
+                        <i class="fas fa-calendar-alt"></i> ${date.toLocaleDateString('en-IN', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        })}
+                    </div>
+                    <div class="expense-list-item-name">
+                        <i class="fas fa-shopping-bag"></i> ${expense.item.charAt(0).toUpperCase() + expense.item.slice(1)}
+                    </div>
+                    <div class="expense-list-item-category">
+                        <i class="fas ${icon}"></i> ${expense.category}
+                    </div>
+                </div>
+                <div class="expense-list-item-amount">₹${expense.amount.toFixed(2)}</div>
+                <div class="expense-list-item-actions">
+                    <button class="btn btn-edit" onclick="openEditExpenseModal(${expense.id})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteExpense(${expense.id})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        `;
     }).join('');
 }
 
@@ -504,6 +686,9 @@ function renderMonthlyBarChart(summary) {
 }
 
 function showCategoryDetails(category, month, year) {
+    // Store current modal state
+    currentCategoryModal = { category, month, year };
+    
     const expenses = getMonthlyExpenses(month, year);
     const categoryExpenses = expenses.filter(exp => exp.category === category);
     
@@ -546,6 +731,14 @@ function showCategoryDetails(category, month, year) {
                     <div class="item-date">${new Date(exp.date).toLocaleDateString()}</div>
                 </div>
                 <div class="item-amount">₹${exp.amount.toFixed(2)}</div>
+                <div class="expense-item-actions" style="display: flex; gap: 8px; margin-left: 10px;">
+                    <button class="btn btn-edit" onclick="openEditExpenseModal(${exp.id}); hideModal('categoryModal');" style="padding: 6px 12px; font-size: 12px;">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteExpense(${exp.id})" style="padding: 6px 12px; font-size: 12px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
         `).join('');
         
@@ -759,9 +952,120 @@ function initializeApp() {
     
     updateItemDropdown();
     updateCategoryDropdowns();
-    renderCategories();
-    renderItems();
     renderOverviewChart(); // Render overview chart on load
+    
+    // Open Category Management Modal
+    document.getElementById('openCategoryManagementBtn').addEventListener('click', () => {
+        renderCategories();
+        showModal('categoryManagementModal');
+    });
+    
+    // Open Item Mapping Modal
+    document.getElementById('openItemMappingBtn').addEventListener('click', () => {
+        updateCategoryDropdowns(); // Refresh category dropdown
+        renderItems();
+        showModal('itemMappingModal');
+    });
+    
+    // Open Expense List Modal
+    document.getElementById('openExpenseListBtn').addEventListener('click', () => {
+        renderExpensesList(); // Render expenses when modal opens
+        showModal('expenseListModal');
+    });
+    
+    // Open Monthly Report Modal
+    document.getElementById('openMonthlyReportBtn').addEventListener('click', () => {
+        // Set current month as default
+        const today = new Date();
+        const currentMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+        document.getElementById('reportMonth').value = currentMonth;
+        // Generate report for current month
+        const [year, month] = currentMonth.split('-').map(Number);
+        renderMonthlyReport(month - 1, year);
+        showModal('monthlyReportModal');
+    });
+    
+    // Close Expense List Modal
+    document.getElementById('closeExpenseListModalBtn').addEventListener('click', () => {
+        hideModal('expenseListModal');
+    });
+    
+    // Close Monthly Report Modal
+    document.getElementById('closeMonthlyReportModalBtn').addEventListener('click', () => {
+        hideModal('monthlyReportModal');
+    });
+    
+    // Close Category Management Modal
+    document.getElementById('closeCategoryModalBtn').addEventListener('click', () => {
+        hideModal('categoryManagementModal');
+    });
+    
+    // Close Item Mapping Modal
+    document.getElementById('closeMappingModalBtn').addEventListener('click', () => {
+        hideModal('itemMappingModal');
+    });
+    
+    // Save Categories (confirmation)
+    document.getElementById('saveCategoriesBtn').addEventListener('click', () => {
+        alert('All category changes have been saved!');
+        updateCategoryDropdowns();
+        updateItemDropdown();
+        hideModal('categoryManagementModal');
+    });
+    
+    // Save Mappings (confirmation)
+    document.getElementById('saveMappingsBtn').addEventListener('click', () => {
+        alert('All mapping changes have been saved!');
+        updateItemDropdown();
+        hideModal('itemMappingModal');
+    });
+    
+    // Load Expenses button
+    document.getElementById('loadExpensesBtn').addEventListener('click', () => {
+        renderExpensesList();
+    });
+    
+    // Auto-load expenses when month filter changes in modal
+    document.getElementById('expenseListMonth').addEventListener('change', () => {
+        renderExpensesList();
+    });
+    
+    // Edit Expense form submission
+    document.getElementById('editExpenseForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = parseInt(document.getElementById('editExpenseId').value);
+        const date = document.getElementById('editExpenseDate').value;
+        const amount = document.getElementById('editExpenseAmount').value;
+        const item = document.getElementById('editExpenseItem').value;
+        
+        if (!date || !amount || !item) {
+            alert('Please fill in all fields.');
+            return;
+        }
+        
+        if (editExpense(id, date, amount, item)) {
+            hideModal('editExpenseModal');
+            alert('Expense updated successfully!');
+        } else {
+            alert('Failed to update expense.');
+        }
+    });
+    
+    // Cancel Edit Expense button
+    document.getElementById('cancelEditExpenseBtn').addEventListener('click', () => {
+        hideModal('editExpenseModal');
+    });
+    
+    // Item selection in edit expense form - auto assign category
+    document.getElementById('editExpenseItem').addEventListener('change', (e) => {
+        const item = e.target.value;
+        if (item) {
+            const category = autoAssignCategory(item);
+            document.getElementById('editExpenseCategory').value = category;
+        } else {
+            document.getElementById('editExpenseCategory').value = '';
+        }
+    });
     
     // Expense form submission
     document.getElementById('expenseForm').addEventListener('submit', (e) => {
@@ -780,6 +1084,20 @@ function initializeApp() {
         document.getElementById('expenseDate').valueAsDate = new Date();
         document.getElementById('expenseCategory').value = '';
         renderOverviewChart(); // Update overview chart
+        // Refresh expense list modal if it's open
+        const expenseListModal = document.getElementById('expenseListModal');
+        if (expenseListModal && expenseListModal.classList.contains('show')) {
+            renderExpensesList();
+        }
+        // Refresh monthly report modal if it's open
+        const monthlyReportModal = document.getElementById('monthlyReportModal');
+        if (monthlyReportModal && monthlyReportModal.classList.contains('show')) {
+            const monthInput = document.getElementById('reportMonth').value;
+            if (monthInput) {
+                const [year, month] = monthInput.split('-').map(Number);
+                renderMonthlyReport(month - 1, year);
+            }
+        }
         alert('Expense added successfully!');
     });
     
@@ -810,6 +1128,8 @@ function initializeApp() {
         const name = document.getElementById('newCategoryName').value;
         if (addCategory(name)) {
             document.getElementById('newCategoryName').value = '';
+            renderCategories(); // Refresh the list
+            updateCategoryDropdowns(); // Update dropdowns
             alert('Category added successfully!');
         } else {
             alert('Please enter a category name.');
@@ -823,6 +1143,8 @@ function initializeApp() {
         if (addItem(item, category)) {
             document.getElementById('newItemName').value = '';
             document.getElementById('newItemCategory').value = '';
+            renderItems(); // Refresh the list
+            updateItemDropdown(); // Update expense form dropdown
             alert('Item added successfully!');
         } else {
             alert('Please enter an item name and select a category.');
@@ -834,6 +1156,11 @@ function initializeApp() {
         const id = parseInt(document.getElementById('editCategoryId').value);
         const name = document.getElementById('editCategoryName').value;
         if (editCategory(id, name)) {
+            // Refresh categories in category management modal if it's open
+            const categoryModal = document.getElementById('categoryManagementModal');
+            if (categoryModal.classList.contains('show')) {
+                renderCategories();
+            }
             hideModal('editCategoryModal');
             alert('Category updated successfully!');
         } else {
@@ -867,6 +1194,8 @@ window.updateItemCategory = updateItemCategory;
 window.removeItem = removeItem;
 window.showCategoryDetails = showCategoryDetails;
 window.openEditCategoryModal = openEditCategoryModal;
+window.deleteExpense = deleteExpense;
+window.openEditExpenseModal = openEditExpenseModal;
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);
