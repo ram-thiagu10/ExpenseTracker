@@ -175,14 +175,9 @@ function deleteExpense(id) {
     // Refresh monthly report modal if it's open
     const monthlyReportModal = document.getElementById('monthlyReportModal');
     if (monthlyReportModal && monthlyReportModal.classList.contains('show')) {
-        const monthInput = document.getElementById('reportMonth').value;
-        if (monthInput) {
-            const [year, month] = monthInput.split('-').map(Number);
-            renderMonthlyReport(month - 1, year);
-        }
+        const range = computeRangeFromType();
+        if (range) renderReportForRange(range.start, range.end, range.label);
     }
-    
-    alert('Expense deleted successfully!');
     return true;
 }
 
@@ -1188,7 +1183,6 @@ function initializeApp() {
     
     // Save Categories (confirmation)
     document.getElementById('saveCategoriesBtn').addEventListener('click', () => {
-        alert('All category changes have been saved!');
         updateCategoryDropdowns();
         updateItemDropdown();
         hideModal('categoryManagementModal');
@@ -1196,7 +1190,6 @@ function initializeApp() {
     
     // Save Mappings (confirmation)
     document.getElementById('saveMappingsBtn').addEventListener('click', () => {
-        alert('All mapping changes have been saved!');
         updateItemDropdown();
         hideModal('itemMappingModal');
     });
@@ -1227,7 +1220,6 @@ function initializeApp() {
         
         if (editExpense(id, date, amount, item, note)) {
             hideModal('editExpenseModal');
-            alert('Expense updated successfully!');
         } else {
             alert('Failed to update expense.');
         }
@@ -1275,13 +1267,9 @@ function initializeApp() {
         // Refresh monthly report modal if it's open
         const monthlyReportModal = document.getElementById('monthlyReportModal');
         if (monthlyReportModal && monthlyReportModal.classList.contains('show')) {
-            const monthInput = document.getElementById('reportMonth').value;
-            if (monthInput) {
-                const [year, month] = monthInput.split('-').map(Number);
-                renderMonthlyReport(month - 1, year);
-            }
+            const range = computeRangeFromType();
+            if (range) renderReportForRange(range.start, range.end, range.label);
         }
-        alert('Expense added successfully!');
     });
     
     // Item selection - auto assign category
@@ -1312,7 +1300,6 @@ function initializeApp() {
             document.getElementById('newCategoryName').value = '';
             renderCategories(); // Refresh the list
             updateCategoryDropdowns(); // Update dropdowns
-            alert('Category added successfully!');
         } else {
             alert('Please enter a category name.');
         }
@@ -1327,7 +1314,6 @@ function initializeApp() {
             document.getElementById('newItemCategory').value = '';
             renderItems(); // Refresh the list
             updateItemDropdown(); // Update expense form dropdown
-            alert('Item added successfully!');
         } else {
             alert('Please enter an item name and select a category.');
         }
@@ -1344,7 +1330,6 @@ function initializeApp() {
                 renderCategories();
             }
             hideModal('editCategoryModal');
-            alert('Category updated successfully!');
         } else {
             alert('Please enter a category name.');
         }
