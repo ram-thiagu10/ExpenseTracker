@@ -109,7 +109,7 @@ function saveItemCategoryMap(map) {
 
 // ==================== EXPENSE FUNCTIONS ====================
 
-function addExpense(date, amount, item) {
+function addExpense(date, amount, item, note) {
     const category = autoAssignCategory(item);
     const expenses = getExpenses();
     const newExpense = {
@@ -117,7 +117,8 @@ function addExpense(date, amount, item) {
         date: date,
         amount: parseFloat(amount),
         item: item,
-        category: category
+        category: category,
+        note: (note || '').trim()
     };
     expenses.push(newExpense);
     saveExpenses(expenses);
@@ -185,7 +186,7 @@ function deleteExpense(id) {
     return true;
 }
 
-function editExpense(id, date, amount, item) {
+function editExpense(id, date, amount, item, note) {
     const category = autoAssignCategory(item);
     const expenses = getExpenses();
     const expense = expenses.find(exp => exp.id === id);
@@ -194,6 +195,7 @@ function editExpense(id, date, amount, item) {
         expense.amount = parseFloat(amount);
         expense.item = item;
         expense.category = category;
+        expense.note = (note || '').trim();
         saveExpenses(expenses);
         renderExpensesList(); // Refresh the list
         renderOverviewChart(); // Update overview chart
@@ -233,6 +235,7 @@ function openEditExpenseModal(id) {
     document.getElementById('editExpenseId').value = id;
     document.getElementById('editExpenseDate').value = expense.date;
     document.getElementById('editExpenseAmount').value = expense.amount;
+    document.getElementById('editExpenseNote').value = expense.note || '';
     
     // Populate item dropdown
     const itemSelect = document.getElementById('editExpenseItem');
@@ -478,6 +481,7 @@ function renderExpensesList() {
                     <div class="expense-list-item-category">
                         <i class="fas ${icon}"></i> ${expense.category}
                     </div>
+                    ${expense.note && expense.note.trim() ? `<div class="expense-list-item-note"><i class="fas fa-sticky-note"></i> ${expense.note.trim()}</div>` : ''}
                 </div>
                 <div class="expense-list-item-amount">₹${expense.amount.toFixed(2)}</div>
                 <div class="expense-list-item-actions">
@@ -530,9 +534,21 @@ const chartColors = [
     '#ffc400', '#ffab00', '#ff6f00', '#ff8f00', '#ffa000'
 ];
 
-function renderMonthlyReport(month, year) {
+function getExpensesInRange(startDate, endDate) {
+    const expenses = getExpenses();
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    // Normalize end to end of day
+    end.setHours(23, 59, 59, 999);
+    return expenses.filter(exp => {
+        const d = new Date(exp.date);
+        return d >= start && d <= end;
+    });
+}
+
+function renderReportForRange(startDate, endDate, titleLabel) {
     const reportSummary = document.getElementById('reportSummary');
-    const expenses = getMonthlyExpenses(month, year);
+    const expenses = getExpensesInRange(startDate, endDate);
     const summary = getCategorySummary(expenses);
     
     if (Object.keys(summary).length === 0) {
@@ -547,11 +563,13 @@ function renderMonthlyReport(month, year) {
     
     // Render category cards with icons
     const categories = Object.keys(summary).sort();
+    const startISO = new Date(startDate).toISOString();
+    const endISO = new Date(endDate).toISOString();
     reportSummary.innerHTML = categories.map((category, index) => {
         const data = summary[category];
         const icon = categoryIcons[category] || 'fa-tag';
         return `
-            <div class="category-card" onclick="showCategoryDetails('${category}', ${month}, ${year})">
+            <div class="category-card" onclick="showCategoryDetailsInRange('${category}', '${startISO}', '${endISO}')">
                 <h3><i class="fas ${icon}"></i> ${category}</h3>
                 <div class="amount">₹${data.total.toFixed(2)}</div>
                 <div class="count">${data.count} ${data.count === 1 ? 'expense' : 'expenses'}</div>
@@ -564,6 +582,79 @@ function renderMonthlyReport(month, year) {
     
     // Render Bar Chart
     renderMonthlyBarChart(summary);
+}
+
+function showCategoryDetailsInRange(category, startISO, endISO) {
+    const start = new Date(startISO);
+    const end = new Date(endISO);
+    const expenses = getExpensesInRange(start, end);
+    const categoryExpenses = expenses.filter(exp => exp.category === category);
+
+    if (categoryExpenses.length === 0) {
+        alert('No expenses found in this category for this range.');
+        return;
+    }
+
+    // Group by item
+    const itemSummary = {};
+    categoryExpenses.forEach(exp => {
+        if (!itemSummary[exp.item]) {
+            itemSummary[exp.item] = {
+                total: 0,
+                count: 0,
+                expenses: []
+            };
+        }
+        itemSummary[exp.item].total += exp.amount;
+        itemSummary[exp.item].count += 1;
+        itemSummary[exp.item].expenses.push(exp);
+    });
+
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modal = document.getElementById('categoryModal');
+    const icon = categoryIcons[category] || 'fa-tag';
+
+    modalTitle.innerHTML = `<i class="fas ${icon}"></i> ${category} - ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`;
+
+    renderCategoryDetailChart(itemSummary);
+
+    modalBody.innerHTML = Object.keys(itemSummary).sort().map(item => {
+        const data = itemSummary[item];
+        const itemExpenses = data.expenses.map(exp => `
+            <div class="expense-item">
+                <div class="item-info">
+                    <div class="item-name">${item.charAt(0).toUpperCase() + item.slice(1)}</div>
+                    <div class="item-date">${new Date(exp.date).toLocaleDateString()}</div>
+                    ${exp.note && exp.note.trim() ? `<div class="item-note" style="color:#b0b0b0; font-size: 0.9em; margin-top: 4px;"><i class="fas fa-sticky-note"></i> ${exp.note.trim()}</div>` : ''}
+                </div>
+                <div class="item-amount">₹${exp.amount.toFixed(2)}</div>
+                <div class="expense-item-actions" style="display: flex; gap: 8px; margin-left: 10px;">
+                    <button class="btn btn-edit" onclick="openEditExpenseModal(${exp.id}); hideModal('categoryModal');" style="padding: 6px 12px; font-size: 12px;">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteExpense(${exp.id})" style="padding: 6px 12px; font-size: 12px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        return `
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #ffc107; margin-bottom: 10px;">
+                    ${item.charAt(0).toUpperCase() + item.slice(1)} 
+                    <span style="color: #ff9800; font-size: 0.9em;">(${data.count} ${data.count === 1 ? 'entry' : 'entries'})</span>
+                </h4>
+                <div style="margin-bottom: 10px; font-weight: bold; color: #e0e0e0;">
+                    Total: ₹${data.total.toFixed(2)}
+                </div>
+                ${itemExpenses}
+            </div>
+        `;
+    }).join('');
+
+    modal.classList.add('show');
 }
 
 function renderMonthlyPieChart(summary) {
@@ -617,6 +708,92 @@ function renderMonthlyPieChart(summary) {
             }
         }
     });
+}
+
+function computeRangeFromType() {
+    const type = document.getElementById('reportRangeType').value;
+    const today = new Date();
+    if (type === 'monthly') {
+        const monthInput = document.getElementById('reportMonth').value;
+        const [year, month] = monthInput ? monthInput.split('-').map(Number) : [today.getFullYear(), today.getMonth() + 1];
+        const start = new Date(year, month - 1, 1);
+        const end = new Date(year, month, 0);
+        return { start, end, label: start.toLocaleString('default', { month: 'long', year: 'numeric' }) };
+    }
+    if (type === 'weekly') {
+        const weekInput = document.getElementById('reportWeek').value; // 'YYYY-Wxx'
+        let start;
+        if (weekInput) {
+            const [y, w] = weekInput.split('-W');
+            const year = parseInt(y, 10);
+            const week = parseInt(w, 10);
+            // ISO week start (Monday)
+            const jan4 = new Date(year, 0, 4);
+            const dayOfWeek = (jan4.getDay() + 6) % 7; // 0=Monday
+            start = new Date(jan4);
+            start.setDate(jan4.getDate() - dayOfWeek + (week - 1) * 7);
+        } else {
+            // default to current week (Mon-Sun)
+            start = new Date(today);
+            const day = start.getDay(); // 0 Sun
+            const diffToMon = (day + 6) % 7;
+            start.setDate(start.getDate() - diffToMon);
+        }
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        const label = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+        return { start, end, label };
+    }
+    if (type === 'yearly') {
+        const yearInput = parseInt(document.getElementById('reportYear').value || today.getFullYear(), 10);
+        const start = new Date(yearInput, 0, 1);
+        const end = new Date(yearInput, 11, 31);
+        return { start, end, label: `${yearInput}` };
+    }
+    if (type === 'custom') {
+        const startStr = document.getElementById('reportStartDate').value;
+        const endStr = document.getElementById('reportEndDate').value;
+        if (!startStr || !endStr) {
+            alert('Please select both start and end dates.');
+            return null;
+        }
+        const start = new Date(startStr);
+        const end = new Date(endStr);
+        if (end < start) {
+            alert('End date must be after start date.');
+            return null;
+        }
+        const label = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+        return { start, end, label };
+    }
+    return null;
+}
+
+function updateReportInputsVisibility() {
+    const type = document.getElementById('reportRangeType').value;
+    const monthEl = document.getElementById('reportMonth').closest('.form-group');
+    const weekEl = document.getElementById('reportWeek').closest('.form-group');
+    const yearEl = document.getElementById('reportYear').closest('.form-group');
+    const startEl = document.getElementById('reportStartDate').closest('.form-group');
+    const endEl = document.getElementById('reportEndDate').closest('.form-group');
+
+    // Hide all
+    monthEl.style.display = 'none';
+    weekEl.style.display = 'none';
+    yearEl.style.display = 'none';
+    startEl.style.display = 'none';
+    endEl.style.display = 'none';
+
+    if (type === 'monthly') {
+        monthEl.style.display = '';
+    } else if (type === 'weekly') {
+        weekEl.style.display = '';
+    } else if (type === 'yearly') {
+        yearEl.style.display = '';
+    } else if (type === 'custom') {
+        startEl.style.display = '';
+        endEl.style.display = '';
+    }
 }
 
 function renderMonthlyBarChart(summary) {
@@ -729,6 +906,7 @@ function showCategoryDetails(category, month, year) {
                 <div class="item-info">
                     <div class="item-name">${item.charAt(0).toUpperCase() + item.slice(1)}</div>
                     <div class="item-date">${new Date(exp.date).toLocaleDateString()}</div>
+                    ${exp.note && exp.note.trim() ? `<div class="item-note" style="color:#b0b0b0; font-size: 0.9em; margin-top: 4px;"><i class="fas fa-sticky-note"></i> ${exp.note.trim()}</div>` : ''}
                 </div>
                 <div class="item-amount">₹${exp.amount.toFixed(2)}</div>
                 <div class="expense-item-actions" style="display: flex; gap: 8px; margin-left: 10px;">
@@ -973,15 +1151,18 @@ function initializeApp() {
         showModal('expenseListModal');
     });
     
-    // Open Monthly Report Modal
-    document.getElementById('openMonthlyReportBtn').addEventListener('click', () => {
+    // Open Expenses Report Modal
+    document.getElementById('openReportBtn').addEventListener('click', () => {
         // Set current month as default
         const today = new Date();
         const currentMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
         document.getElementById('reportMonth').value = currentMonth;
+        document.getElementById('reportRangeType').value = 'monthly';
         // Generate report for current month
         const [year, month] = currentMonth.split('-').map(Number);
-        renderMonthlyReport(month - 1, year);
+        const start = new Date(year, month - 1, 1);
+        const end = new Date(year, month, 0);
+        renderReportForRange(start, end, 'Current Month');
         showModal('monthlyReportModal');
     });
     
@@ -1037,13 +1218,14 @@ function initializeApp() {
         const date = document.getElementById('editExpenseDate').value;
         const amount = document.getElementById('editExpenseAmount').value;
         const item = document.getElementById('editExpenseItem').value;
+        const note = document.getElementById('editExpenseNote').value;
         
         if (!date || !amount || !item) {
             alert('Please fill in all fields.');
             return;
         }
         
-        if (editExpense(id, date, amount, item)) {
+        if (editExpense(id, date, amount, item, note)) {
             hideModal('editExpenseModal');
             alert('Expense updated successfully!');
         } else {
@@ -1073,13 +1255,14 @@ function initializeApp() {
         const date = document.getElementById('expenseDate').value;
         const amount = document.getElementById('expenseAmount').value;
         const item = document.getElementById('expenseItem').value;
+        const note = document.getElementById('expenseNote').value;
         
         if (!date || !amount || !item) {
             alert('Please fill in all fields.');
             return;
         }
         
-        addExpense(date, amount, item);
+        addExpense(date, amount, item, note);
         document.getElementById('expenseForm').reset();
         document.getElementById('expenseDate').valueAsDate = new Date();
         document.getElementById('expenseCategory').value = '';
@@ -1114,14 +1297,13 @@ function initializeApp() {
     
     // Generate report button
     document.getElementById('generateReport').addEventListener('click', () => {
-        const monthInput = document.getElementById('reportMonth').value;
-        if (!monthInput) {
-            alert('Please select a month.');
-            return;
-        }
-        const [year, month] = monthInput.split('-').map(Number);
-        renderMonthlyReport(month - 1, year); // month is 0-indexed in JS
+        const range = computeRangeFromType();
+        if (!range) return;
+        renderReportForRange(range.start, range.end, range.label);
     });
+
+    // Range type change - dynamically toggle controls
+    document.getElementById('reportRangeType').addEventListener('change', updateReportInputsVisibility);
     
     // Add category button
     document.getElementById('addCategoryBtn').addEventListener('click', () => {
@@ -1199,4 +1381,3 @@ window.openEditExpenseModal = openEditExpenseModal;
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);
-

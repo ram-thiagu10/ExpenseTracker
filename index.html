@@ -45,6 +45,10 @@
                     <label for="expenseCategory"><i class="fas fa-tags"></i> Category:</label>
                     <input type="text" id="expenseCategory" readonly>
                 </div>
+                <div class="form-group">
+                    <label for="expenseNote"><i class="fas fa-sticky-note"></i> Note (optional):</label>
+                    <input type="text" id="expenseNote" placeholder="Add a short note (e.g., Lunch with friends)">
+                </div>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add Expense</button>
             </form>
         </section>
@@ -64,8 +68,8 @@
                 <button id="openExpenseListBtn" class="btn btn-primary">
                     <i class="fas fa-list"></i> View Expense List
                 </button>
-                <button id="openMonthlyReportBtn" class="btn btn-primary">
-                    <i class="fas fa-chart-pie"></i> Monthly Report
+                <button id="openReportBtn" class="btn btn-primary">
+                    <i class="fas fa-chart-pie"></i> Expenses Report
                 </button>
             </div>
         </section>
@@ -186,16 +190,41 @@
         </div>
     </div>
 
-    <!-- Modal for Monthly Report -->
+    <!-- Modal for Expenses Report -->
     <div id="monthlyReportModal" class="modal">
         <div class="modal-content large-modal">
             <span class="close">&times;</span>
-            <h2><i class="fas fa-chart-pie"></i> Monthly Report</h2>
+            <h2><i class="fas fa-chart-pie"></i> Expenses Report</h2>
             <div class="modal-section">
                 <div class="report-controls">
                     <div class="form-group">
-                        <label for="reportMonth"><i class="fas fa-calendar"></i> Select Month:</label>
+                        <label for="reportRangeType"><i class="fas fa-filter"></i> Range:</label>
+                        <select id="reportRangeType">
+                            <option value="monthly" selected>Monthly</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="yearly">Yearly</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportMonth"><i class="fas fa-calendar"></i> Month:</label>
                         <input type="month" id="reportMonth" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportWeek"><i class="fas fa-calendar-week"></i> Week:</label>
+                        <input type="week" id="reportWeek">
+                    </div>
+                    <div class="form-group">
+                        <label for="reportYear"><i class="fas fa-calendar-alt"></i> Year:</label>
+                        <input type="number" id="reportYear" min="1970" max="2100" placeholder="YYYY">
+                    </div>
+                    <div class="form-group">
+                        <label for="reportStartDate"><i class="fas fa-play"></i> Start Date:</label>
+                        <input type="date" id="reportStartDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="reportEndDate"><i class="fas fa-stop"></i> End Date:</label>
+                        <input type="date" id="reportEndDate">
                     </div>
                     <button id="generateReport" class="btn btn-secondary"><i class="fas fa-search"></i> Generate Report</button>
                 </div>
@@ -243,6 +272,10 @@
                     <label for="editExpenseCategory"><i class="fas fa-tags"></i> Category:</label>
                     <input type="text" id="editExpenseCategory" readonly>
                 </div>
+                <div class="form-group">
+                    <label for="editExpenseNote"><i class="fas fa-sticky-note"></i> Note (optional):</label>
+                    <input type="text" id="editExpenseNote" placeholder="Add a short note">
+                </div>
                 <input type="hidden" id="editExpenseId">
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
@@ -255,4 +288,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
